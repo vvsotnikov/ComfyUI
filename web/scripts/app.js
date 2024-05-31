@@ -220,6 +220,7 @@ export class ComfyApp {
             }
             const workflowData = await response.json();
             await this.loadGraphData(workflowData);
+			return workflowData;
         } catch (error) {
             console.error('Error fetching workflow:', error);
             this.ui.dialog.show(`Error: Could not load the workflow with ID ${workflowId}`);
@@ -2184,6 +2185,17 @@ export class ComfyApp {
 	 */
 	async handleFile(file) {
 		if (file.type === "image/png") {
+			// if filename ends with _hashcode.png, it is a workflow
+			const filename = file.name;
+			const parts = filename.split("_");
+			if (parts.length > 1) {
+				const hashcode = parts.pop().split(".")[0].split("-")[0].split(" ")[0];
+				const workflow = await this.loadWorkflowById(hashcode);
+				if (workflow) {
+					await this.loadGraphData(workflow);
+					return;
+				}
+			}
 			const pngInfo = await getPngMetadata(file);
 			if (pngInfo) {
 				if (pngInfo.workflow) {
