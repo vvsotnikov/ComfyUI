@@ -73178,6 +73178,21 @@ class ComfyAppMenu {
     }
     const p2 = await this.app.graphToPrompt();
     const json = JSON.stringify(p2[promptProperty], null, 2);
+    try {
+        filename = "workflow.json";
+        const response = await fetch(`https://kraken.labs.jb.gg/scene/save?prefix=comfy`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json;charset=utf-8'
+        },
+        body: json
+    });
+    let result = await response.json();
+    filename = result.scene_id + ".json";
+    defaultWindow.location.hash = result.scene_id;
+} catch (e) {
+    console.error(e);
+                    }
     const blob = new Blob([json], { type: "application/json" });
     const file = await this.getFilename(filename);
     if (!file) return;
@@ -77027,6 +77042,20 @@ class ComfyApp {
     }
     return useExtensionStore().enabledExtensions;
   }
+    async loadWorkflowById(workflowId) {
+    try {
+        const response = await fetch(`https://kraken.labs.jb.gg/scene/load?scene_id=${workflowId}&prefix=comfy`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch workflow');
+        }
+        const workflowData = await response.json();
+        await this.manager.app.loadGraphData(workflowData);
+        return workflowData;
+    } catch (error) {
+        console.error('Error fetching workflow:', error);
+        this.ui.dialog.show(`Error: Could not load the workflow with ID ${workflowId}`);
+    }
+    }
   /**
    * Invoke an extension callback
    * @param {keyof ComfyExtension} method The extension callback to execute
@@ -78245,6 +78274,12 @@ class ComfyApp {
     } catch (err) {
       console.error("Error loading previous workflow", err);
     }
+    // Load workflow from hash if applicable
+        const hash = defaultWindow.location.hash.slice(1);
+        if (hash) {
+            await this.loadWorkflowById(hash);
+            restored = true;
+        }
     if (!restored) {
       await this.loadGraphData();
     }
@@ -78881,6 +78916,17 @@ class ComfyApp {
     }, "removeExt");
     const fileName = removeExt(file.name);
     if (file.type === "image/png") {
+        // if filename ends with _hashcode.png, it is a workflow
+			const filename = file.name;
+			const parts = filename.split("_");
+			if (parts.length > 1) {
+				const hashcode = parts.pop().split(".")[0].split("-")[0].split(" ")[0];
+				const workflow = await this.loadWorkflowById(hashcode);
+				if (workflow) {
+					await this.loadGraphData(workflow);
+					return;
+				}
+			}
       const pngInfo = await getPngMetadata(file);
       if (pngInfo?.workflow) {
         await this.loadGraphData(

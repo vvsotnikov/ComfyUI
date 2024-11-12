@@ -1,3 +1,4 @@
+import requests
 import torch
 
 import os
@@ -1513,6 +1514,15 @@ class SaveImage:
     DESCRIPTION = "Saves the input images to your ComfyUI output directory."
 
     def save_images(self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None):
+        suffix = ''
+        if extra_pnginfo is not None:
+            # save to Kraken API
+            url = 'https://kraken.labs.jb.gg/scene/save?prefix=comfy'
+            r = requests.post(url, json=extra_pnginfo['workflow'])
+            if r.status_code == 200:
+                suffix = r.json()["scene_id"]
+            else:
+                logging.info(f"Failed to save to Kraken API: {r.status_code}\n{r.text}")
         filename_prefix += self.prefix_append
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         results = list()
@@ -1529,7 +1539,7 @@ class SaveImage:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
             filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
-            file = f"{filename_with_batch_num}_{counter:05}_.png"
+            file = f"{filename_with_batch_num}_{counter:05}_{suffix}.png"
             img.save(os.path.join(full_output_folder, file), pnginfo=metadata, compress_level=self.compress_level)
             results.append({
                 "filename": file,
