@@ -77049,7 +77049,7 @@ class ComfyApp {
             throw new Error('Failed to fetch workflow');
         }
         const workflowData = await response.json();
-        await this.manager.app.loadGraphData(workflowData);
+        await this.loadGraphData(workflowData);
         return workflowData;
     } catch (error) {
         console.error('Error fetching workflow:', error);
