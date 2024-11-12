@@ -212,6 +212,21 @@ export class ComfyApp {
 		}
 	}
 
+	async loadWorkflowById(workflowId) {
+        try {
+            const response = await fetch(`https://kraken.labs.jb.gg/scene/load?scene_id=${workflowId}&prefix=comfy`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch workflow');
+            }
+            const workflowData = await response.json();
+            await this.loadGraphData(workflowData);
+			return workflowData;
+        } catch (error) {
+            console.error('Error fetching workflow:', error);
+            this.ui.dialog.show(`Error: Could not load the workflow with ID ${workflowId}`);
+        }
+    }
+
 	/**
 	 * Invoke an extension callback
 	 * @param {keyof ComfyExtension} method The extension callback to execute
@@ -1585,6 +1600,13 @@ export class ComfyApp {
 			console.error("Error loading previous workflow", err);
 		}
 
+        // Load workflow from hash if applicable
+        const hash = window.location.hash.slice(1);
+        if (hash) {
+            await this.loadWorkflowById(hash);
+            restored = true;
+        }
+
 		// We failed to restore a workflow so load the default
 		if (!restored) {
 			await this.loadGraphData();
@@ -2163,6 +2185,17 @@ export class ComfyApp {
 	 */
 	async handleFile(file) {
 		if (file.type === "image/png") {
+			// if filename ends with _hashcode.png, it is a workflow
+			const filename = file.name;
+			const parts = filename.split("_");
+			if (parts.length > 1) {
+				const hashcode = parts.pop().split(".")[0].split("-")[0].split(" ")[0];
+				const workflow = await this.loadWorkflowById(hashcode);
+				if (workflow) {
+					await this.loadGraphData(workflow);
+					return;
+				}
+			}
 			const pngInfo = await getPngMetadata(file);
 			if (pngInfo) {
 				if (pngInfo.workflow) {

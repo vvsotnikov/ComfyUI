@@ -6,17 +6,17 @@ import { ComfySettingsDialog } from "./ui/settings.js";
 export const ComfyDialog = _ComfyDialog;
 
 /**
- * 
+ *
  * @param { string } tag HTML Element Tag and optional classes e.g. div.class1.class2
  * @param { string | Element | Element[] | {
  * 	 parent?: Element,
- *   $?: (el: Element) => void, 
+ *   $?: (el: Element) => void,
  *   dataset?: DOMStringMap,
  *   style?: CSSStyleDeclaration,
  * 	 for?: string
- * } | undefined } propsOrChildren 
+ * } | undefined } propsOrChildren
  * @param { Element[] | undefined } [children]
- * @returns 
+ * @returns
  */
 export function $el(tag, propsOrChildren, children) {
 	const split = tag.split(".");
@@ -477,7 +477,7 @@ export class ComfyUI {
 							this.batchCount = i.srcElement.value;
 							document.getElementById("batchCountInputNumber").value = i.srcElement.value;
 						},
-					}),		
+					}),
 				]),
 				$el("div",[
 					$el("label",{
@@ -525,35 +525,43 @@ export class ComfyUI {
 			this.queue.element,
 			this.history.element,
 			$el("button", {
-				id: "comfy-save-button",
-				textContent: "Save",
-				onclick: () => {
-					let filename = "workflow.json";
-					if (promptFilename.value) {
-						filename = prompt("Save workflow as:", filename);
-						if (!filename) return;
-						if (!filename.toLowerCase().endsWith(".json")) {
-							filename += ".json";
-						}
-					}
-					app.graphToPrompt().then(p=>{
-						const json = JSON.stringify(p.workflow, null, 2); // convert the data to a JSON string
-						const blob = new Blob([json], {type: "application/json"});
-						const url = URL.createObjectURL(blob);
-						const a = $el("a", {
-							href: url,
-							download: filename,
-							style: {display: "none"},
-							parent: document.body,
-						});
-						a.click();
-						setTimeout(function () {
-							a.remove();
-							window.URL.revokeObjectURL(url);
-						}, 0);
-					});
-				},
-			}),
+                id: "comfy-save-button",
+                textContent: "Save",
+                onclick: () => {
+                    app.graphToPrompt().then(async p => {
+                        const json = JSON.stringify(p.workflow, null, 2); // convert the data to a JSON string
+                        let filename = "workflow.json";
+                        try {
+                            const response = await fetch(`https://kraken.labs.jb.gg/scene/save?prefix=comfy`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json;charset=utf-8'
+                                },
+                                body: json
+                            });
+                            let result = await response.json();
+                            filename = result.scene_id + ".json";
+                            window.location.hash = result.scene_id;
+                        } catch (e) {
+                            console.error(e);
+
+                        }
+                        const blob = new Blob([json], {type: "application/json"});
+                        const url = URL.createObjectURL(blob);
+                        const a = $el("a", {
+                            href: url,
+                            download: filename,
+                            style: {display: "none"},
+                            parent: document.body,
+                        });
+                        a.click();
+                        setTimeout(function () {
+                            a.remove();
+                            window.URL.revokeObjectURL(url);
+                        }, 0);
+                    });
+                },
+            }),
 			$el("button", {
 				id: "comfy-dev-save-api-button",
 				textContent: "Save (API Format)",
